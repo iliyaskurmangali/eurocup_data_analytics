@@ -20,27 +20,33 @@ df['MatchResult'] = df.apply(determine_winner, axis=1)
 
 # Function to calculate team statistics
 def team_statistics(df, team1, team2):
-    team1_home = df[df['HomeTeamName'].str.contains(team1, case=False)]
-    team1_away = df[df['AwayTeamName'].str.contains(team1, case=False)]
-    team2_home = df[df['HomeTeamName'].str.contains(team2, case=False)]
-    team2_away = df[df['AwayTeamName'].str.contains(team2, case=False)]
+    team1_home = df[df['HomeTeamName'].str.contains(team1) | df['AwayTeamName'].str.contains(team1)]
+    team2_home = df[df['HomeTeamName'].str.contains(team2) | df['AwayTeamName'].str.contains(team2)]
 
-    team1_matches = pd.concat([team1_home, team1_away])
-    team2_matches = pd.concat([team2_home, team2_away])
+    # Calculate number of matches played between team1 and team2
+    team1_vs_team2 = team1_home[(team1_home['HomeTeamName'].str.contains(team1) & team1_home['AwayTeamName'].str.contains(team2)) |
+                                (team1_home['AwayTeamName'].str.contains(team1) & team1_home['HomeTeamName'].str.contains(team2))]
 
-    # Matches between team1 and team2
-    team1_vs_team2 = team1_matches[(team1_matches['HomeTeamName'].str.contains(team1, case=False) & team1_matches['AwayTeamName'].str.contains(team2, case=False)) |
-                                    (team1_matches['AwayTeamName'].str.contains(team1, case=False) & team1_matches['HomeTeamName'].str.contains(team2, case=False))]
+    # Calculate number of matches where team2 played against team1
+    team2_vs_team1 = team2_home[(team2_home['HomeTeamName'].str.contains(team2) & team2_home['AwayTeamName'].str.contains(team1)) |
+                                (team2_home['AwayTeamName'].str.contains(team2) & team2_home['HomeTeamName'].str.contains(team1))]
 
     total_matches = len(team1_vs_team2)
-    team1_wins = len(team1_vs_team2[team1_vs_team2['MatchResult'] == 'home_win'])
-    team2_wins = len(team1_vs_team2[team1_vs_team2['MatchResult'] == 'away_win'])
+
+    team1_wins = len(team1_vs_team2.loc[((team1_vs_team2['HomeTeamName'].str.contains(team1)) & (team1_vs_team2['MatchResult'].str.contains('home_win'))) |
+                                       ((team1_vs_team2['AwayTeamName'].str.contains(team1)) & (team1_vs_team2['MatchResult'].str.contains('away_win')))])
+
+    team2_wins = len(team1_vs_team2.loc[((team1_vs_team2['HomeTeamName'].str.contains(team2)) & (team1_vs_team2['MatchResult'].str.contains('home_win'))) |
+                                       ((team1_vs_team2['AwayTeamName'].str.contains(team2)) & (team1_vs_team2['MatchResult'].str.contains('away_win')))])
+
+    # Calculate total goals scored by team1 and team2
+    team1_goals = team1_vs_team2.loc[team1_vs_team2['HomeTeamName'].str.contains(team1), 'HomeTeamGoals'].sum() + \
+                  team1_vs_team2.loc[team1_vs_team2['AwayTeamName'].str.contains(team1), 'AwayTeamGoals'].sum()
+
+    team2_goals = team1_vs_team2.loc[team1_vs_team2['HomeTeamName'].str.contains(team2), 'HomeTeamGoals'].sum() + \
+                  team1_vs_team2.loc[team1_vs_team2['AwayTeamName'].str.contains(team2), 'AwayTeamGoals'].sum()
+
     draws = len(team1_vs_team2[team1_vs_team2['MatchResult'] == 'draw'])
-
-    team1_goals = team1_vs_team2['HomeTeamGoals'].sum() + team1_vs_team2['AwayTeamGoals'].sum()
-
-    team2_goals = team1_matches.loc[team1_matches['HomeTeamName'].str.contains(team2, case=False), 'HomeTeamGoals'].sum() + \
-                  team1_matches.loc[team1_matches['AwayTeamName'].str.contains(team2, case=False), 'AwayTeamGoals'].sum()
 
     return total_matches, team1_wins, team2_wins, draws, team1_goals, team2_goals
 
